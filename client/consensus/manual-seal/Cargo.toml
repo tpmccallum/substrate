@@ -29,6 +29,7 @@ sp-consensus = { package = "sp-consensus", path = "../../../primitives/consensus
 sp-inherents = { path = "../../../primitives/inherents", version = "2.0.0-rc5" }
 sp-runtime = {  path = "../../../primitives/runtime", version = "2.0.0-rc5" }
 sp-core = {  path = "../../../primitives/core", version = "2.0.0-rc5" }
+sp-api = {  path = "../../../primitives/api", version = "2.0.0-rc5" }
 sp-transaction-pool = { path = "../../../primitives/transaction-pool", version = "2.0.0-rc5" }
 prometheus-endpoint = { package = "substrate-prometheus-endpoint", path = "../../../utils/prometheus", version = "0.8.0-rc5" }
 

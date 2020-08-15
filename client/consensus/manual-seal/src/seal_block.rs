@@ -16,7 +16,7 @@
 
 //! Block sealing utilities
 
-use crate::{Error, rpc};
+use crate::{Error, rpc, CreatedBlock};
 use std::sync::Arc;
 use sp_runtime::{
 	traits::{Block as BlockT, Header as HeaderT},
@@ -24,24 +24,21 @@ use sp_runtime::{
 };
 use futures::prelude::*;
 use sc_transaction_pool::txpool;
-use rpc::CreatedBlock;
-
 use sp_consensus::{
-	self, BlockImport, Environment, Proposer,
-	ForkChoiceStrategy, BlockImportParams, BlockOrigin,
-	ImportResult, SelectChain,
-	import_queue::BoxBlockImport,
+	self, BlockImport, Environment, Proposer, ForkChoiceStrategy,
+	BlockImportParams, BlockOrigin, ImportResult, SelectChain,
 };
 use sp_blockchain::HeaderBackend;
 use std::collections::HashMap;
 use std::time::Duration;
 use sp_inherents::InherentDataProviders;
+use sp_api::ProvideRuntimeApi;
 
 /// max duration for creating a proposal in secs
-const MAX_PROPOSAL_DURATION: u64 = 10;
+pub const MAX_PROPOSAL_DURATION: u64 = 10;
 
 /// params for sealing a new block
-pub struct SealBlockParams<'a, B: BlockT, SC, HB, E, T, P: txpool::ChainApi> {
+pub struct SealBlockParams<'a, B: BlockT, BI, SC, HB, E, P: txpool::ChainApi> {
 	/// if true, empty blocks(without extrinsics) will be created.
 	/// otherwise, will return Error::EmptyTransactionPool.
 	pub create_empty: bool,
@@ -60,13 +57,13 @@ pub struct SealBlockParams<'a, B: BlockT, SC, HB, E, T, P: txpool::ChainApi> {
 	/// SelectChain object
 	pub select_chain: &'a SC,
 	/// block import object
-	pub block_import: &'a mut BoxBlockImport<B, T>,
+	pub block_import: &'a mut BI,
 	/// inherent data provider
 	pub inherent_data_provider: &'a InherentDataProviders,
 }
 
 /// seals a new block with the given params
-pub async fn seal_new_block<B, SC, HB, E, T, P>(
+pub async fn seal_block<B, BI, SC, C, E, P>(
 	SealBlockParams {
 		create_empty,
 		finalize,
@@ -79,11 +76,13 @@ pub async fn seal_new_block<B, SC, HB, E, T, P>(
 		inherent_data_provider,
 		mut sender,
 		..
-	}: SealBlockParams<'_, B, SC, HB, E, T, P>
+	}: SealBlockParams<'_, B, BI, SC, C, E, P>
 )
 	where
 		B: BlockT,
-		HB: HeaderBackend<B>,
+		BI: BlockImport<B, Error = sp_consensus::Error, Transaction = sp_api::TransactionFor<C, B>>
+			+ Send + Sync + 'static,
+		C: HeaderBackend<B> + ProvideRuntimeApi<B>,
 		E: Environment<B>,
 		<E as Environment<B>>::Error: std::fmt::Display,
 		<E::Proposer as Proposer<B>>::Error: std::fmt::Display,
