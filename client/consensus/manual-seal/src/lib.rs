@@ -114,9 +114,6 @@ pub struct ManualSealParams<B: BlockT, BI, E, C, A: txpool::ChainApi, SC, CS> {
 
 	/// Provider for inherents to include in blocks.
 	pub inherent_data_providers: InherentDataProviders,
-
-	/// Phantom type to pin the marker type
-	pub phantom: PhantomData<B>,
 }
 
 /// Params required to start the manual sealing authorship task.
@@ -141,9 +138,6 @@ pub struct InstantSealParams<B, BI, E, C, A: txpool::ChainApi, SC> {
 
 	/// Provider for inherents to include in blocks.
 	pub inherent_data_providers: InherentDataProviders,
-
-	/// Phantom type to pin the marker type
-	pub phantom: PhantomData<B>,
 }
 
 /// Creates the background authorship task for the manual seal engine.
@@ -262,8 +256,6 @@ pub async fn run_instant_seal<B, BI, CB, E, C, A, SC>(
 			select_chain,
 			digest_provider,
 			inherent_data_providers,
-			/// TODO: phantomdata in public api?
-			phantom: PhantomData
 		}
 	).await
 }
@@ -332,7 +324,6 @@ mod tests {
 				select_chain,
 				inherent_data_providers,
 				digest_provider: None,
-				phantom: PhantomData
 			}
 		);
 		std::thread::spawn(|| {
@@ -391,7 +382,6 @@ mod tests {
 				select_chain,
 				digest_provider: None,
 				inherent_data_providers,
-				phantom: PhantomData
 			}
 		);
 		std::thread::spawn(|| {
@@ -467,7 +457,6 @@ mod tests {
 				select_chain,
 				digest_provider: None,
 				inherent_data_providers,
-				phantom: PhantomData
 			}
 		);
 		std::thread::spawn(|| {
