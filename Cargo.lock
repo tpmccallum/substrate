@@ -6376,42 +6376,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sc-consensus-babe-manual-seal"
-version = "0.8.0-rc5"
-dependencies = [
- "assert_matches",
- "derive_more",
- "env_logger 0.7.1",
- "futures 0.3.5",
- "jsonrpc-core",
- "jsonrpc-core-client",
- "jsonrpc-derive",
- "log",
- "parking_lot 0.10.2",
- "sc-basic-authorship",
- "sc-client-api",
- "sc-consensus-babe",
- "sc-consensus-epochs",
- "sc-consensus-manual-seal",
- "sc-keystore",
- "sc-transaction-pool",
- "serde",
- "sp-api",
- "sp-blockchain",
- "sp-consensus",
- "sp-consensus-babe",
- "sp-core",
- "sp-inherents",
- "sp-runtime",
- "sp-transaction-pool",
- "substrate-prometheus-endpoint",
- "substrate-test-runtime-client",
- "substrate-test-runtime-transaction-pool",
- "tempfile",
- "tokio 0.2.21",
-]
-
-[[package]]
 name = "sc-consensus-babe-rpc"
 version = "0.8.0-rc5"
 dependencies = [
@@ -6466,11 +6430,15 @@ dependencies = [
  "parking_lot 0.10.2",
  "sc-basic-authorship",
  "sc-client-api",
+ "sc-consensus-babe",
+ "sc-consensus-epochs",
+ "sc-keystore",
  "sc-transaction-pool",
  "serde",
  "sp-api",
  "sp-blockchain",
  "sp-consensus",
+ "sp-consensus-babe",
  "sp-core",
  "sp-inherents",
  "sp-runtime",

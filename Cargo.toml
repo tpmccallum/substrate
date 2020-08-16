@@ -26,7 +26,6 @@ members = [
 	"client/consensus/babe/rpc",
 	"client/consensus/common",
 	"client/consensus/manual-seal",
-	"client/consensus/manual-seal/babe",
 	"client/consensus/pow",
 	"client/consensus/uncles",
 	"client/consensus/slots",

@@ -16,7 +16,7 @@
 
 //! Block sealing utilities
 
-use crate::{Error, rpc, CreatedBlock};
+use crate::{Error, rpc, CreatedBlock, DigestProvider};
 use std::sync::Arc;
 use sp_runtime::{
 	traits::{Block as BlockT, Header as HeaderT},
@@ -56,6 +56,8 @@ pub struct SealBlockParams<'a, B: BlockT, BI, SC, HB, E, P: txpool::ChainApi> {
 	pub env: &'a mut E,
 	/// SelectChain object
 	pub select_chain: &'a SC,
+	/// Digest provider for inclusion in blocks.
+	pub digest_provider: Option<&'a dyn DigestProvider<B>>,
 	/// block import object
 	pub block_import: &'a mut BI,
 	/// inherent data provider
@@ -74,6 +76,7 @@ pub async fn seal_block<B, BI, SC, C, E, P>(
 		block_import,
 		env,
 		inherent_data_provider,
+		digest_provider,
 		mut sender,
 		..
 	}: SealBlockParams<'_, B, BI, SC, C, E, P>
@@ -111,7 +114,14 @@ pub async fn seal_block<B, BI, SC, C, E, P>(
 			.map_err(|err| Error::StringError(format!("{}", err))).await?;
 		let id = inherent_data_provider.create_inherent_data()?;
 		let inherents_len = id.len();
-		let proposal = proposer.propose(id, Default::default(), Duration::from_secs(MAX_PROPOSAL_DURATION), false.into())
+
+		let digest = if let Some(digest_provider) = digest_provider {
+			digest_provider.create_digest(&header, &id)?
+		} else {
+			Default::default()
+		};
+
+		let proposal = proposer.propose(id, digest, Duration::from_secs(MAX_PROPOSAL_DURATION), false.into())
 			.map_err(|err| Error::StringError(format!("{}", err))).await?;
 
 		if proposal.block.extrinsics().len() == inherents_len && !create_empty {

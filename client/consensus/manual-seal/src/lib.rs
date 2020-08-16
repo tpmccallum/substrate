@@ -34,11 +34,13 @@ use prometheus_endpoint::Registry;
 
 mod error;
 mod finalize_block;
+pub mod digest;
 mod seal_block;
 pub mod rpc;
 
 pub use self::{
 	error::Error,
+	digest::DigestProvider,
 	finalize_block::{finalize_block, FinalizeBlockParams},
 	seal_block::{SealBlockParams, seal_block, MAX_PROPOSAL_DURATION},
 	rpc::{EngineCommand, CreatedBlock},
@@ -87,7 +89,7 @@ pub fn import_queue<Block, Transaction>(
 }
 
 /// Params required to start the instant sealing authorship task.
-pub struct ManualSealParams<B, BI, E, C, A: txpool::ChainApi, SC, CS> {
+pub struct ManualSealParams<B: BlockT, BI, E, C, A: txpool::ChainApi, SC, CS> {
 	/// Block import instance for well. importing blocks.
 	pub block_import: BI,
 
@@ -106,6 +108,9 @@ pub struct ManualSealParams<B, BI, E, C, A: txpool::ChainApi, SC, CS> {
 
 	/// SelectChain strategy.
 	pub select_chain: SC,
+
+	/// Digest provider for inclusion in blocks.
+	pub digest_provider: Option<Box<dyn DigestProvider<B>>>,
 
 	/// Provider for inherents to include in blocks.
 	pub inherent_data_providers: InherentDataProviders,
@@ -131,6 +136,9 @@ pub struct InstantSealParams<B, BI, E, C, A: txpool::ChainApi, SC> {
 	/// SelectChain strategy.
 	pub select_chain: SC,
 
+	/// Digest provider for inclusion in blocks.
+	pub digest_provider: Option<Box<dyn DigestProvider<B>>>,
+
 	/// Provider for inherents to include in blocks.
 	pub inherent_data_providers: InherentDataProviders,
 
@@ -148,6 +156,7 @@ pub async fn run_manual_seal<B, BI, CB, E, C, A, SC, CS>(
 		mut commands_stream,
 		select_chain,
 		inherent_data_providers,
+		digest_provider,
 		..
 	}: ManualSealParams<B, BI, E, C, A, SC, CS>
 )
@@ -182,6 +191,7 @@ pub async fn run_manual_seal<B, BI, CB, E, C, A, SC, CS>(
 						select_chain: &select_chain,
 						block_import: &mut block_import,
 						inherent_data_provider: &inherent_data_providers,
+						digest_provider: digest_provider.as_ref().map(|p| &**p),
 						pool: pool.clone(),
 						client: client.clone(),
 					}
@@ -212,6 +222,7 @@ pub async fn run_instant_seal<B, BI, CB, E, C, A, SC>(
 		client,
 		pool,
 		select_chain,
+		digest_provider,
 		inherent_data_providers,
 		..
 	}: InstantSealParams<B, BI, E, C, A, SC>
@@ -249,6 +260,7 @@ pub async fn run_instant_seal<B, BI, CB, E, C, A, SC>(
 			pool,
 			commands_stream,
 			select_chain,
+			digest_provider,
 			inherent_data_providers,
 			/// TODO: phantomdata in public api?
 			phantom: PhantomData
@@ -319,6 +331,7 @@ mod tests {
 				commands_stream,
 				select_chain,
 				inherent_data_providers,
+				digest_provider: None,
 				phantom: PhantomData
 			}
 		);
@@ -376,6 +389,7 @@ mod tests {
 				pool: pool.pool().clone(),
 				commands_stream,
 				select_chain,
+				digest_provider: None,
 				inherent_data_providers,
 				phantom: PhantomData
 			}
@@ -451,6 +465,7 @@ mod tests {
 				pool: pool.pool().clone(),
 				commands_stream,
 				select_chain,
+				digest_provider: None,
 				inherent_data_providers,
 				phantom: PhantomData
 			}
