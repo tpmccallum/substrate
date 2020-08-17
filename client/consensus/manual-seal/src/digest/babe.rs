@@ -51,8 +51,8 @@ pub struct BabeDigestProvider<B: BlockT, C> {
 	config: Config,
 }
 
+/// num of blocks per slot
 const SLOT_DURATION: u64 = 6;
-
 
 impl<B, C> BabeDigestProvider<B, C>
 	where
