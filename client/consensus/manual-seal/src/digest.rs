@@ -26,7 +26,7 @@ use super::Error;
 pub mod babe;
 
 /// Digest factory, for inclusion in blocks.
-pub trait DigestProvider<B: BlockT> {
+pub trait DigestProvider<B: BlockT>: Send + Sync {
 	/// Attempt to create a consensus digest.
 	fn create_digest(&self, parent: &B::Header, provider: &InherentData) -> Result<DigestFor<B>, Error>;
 }

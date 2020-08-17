@@ -316,7 +316,7 @@ mod tests {
 			});
 		let future = run_manual_seal(
 			ManualSealParams {
-				block_import: Box::new(client.clone()),
+				block_import: client.clone(),
 				env,
 				client: client.clone(),
 				pool: pool.pool().clone(),
@@ -374,7 +374,7 @@ mod tests {
 		let (mut sink, commands_stream) = futures::channel::mpsc::channel(1024);
 		let future = run_manual_seal(
 			ManualSealParams {
-				block_import: Box::new(client.clone()),
+				block_import: client.clone(),
 				env,
 				client: client.clone(),
 				pool: pool.pool().clone(),
@@ -449,7 +449,7 @@ mod tests {
 		let (mut sink, commands_stream) = futures::channel::mpsc::channel(1024);
 		let future = run_manual_seal(
 			ManualSealParams {
-				block_import: Box::new(client.clone()),
+				block_import: client.clone(),
 				env,
 				client: client.clone(),
 				pool: pool.pool().clone(),
