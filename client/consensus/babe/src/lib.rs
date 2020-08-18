@@ -289,10 +289,17 @@ impl Config {
 		trace!(target: "babe", "Getting slot duration");
 		match sc_consensus_slots::SlotDuration::get_or_compute(client, |a, b| {
 			let has_api_v1 = a.has_api_with::<dyn BabeApi<B, Error = sp_blockchain::Error>, _>(
-				&b, |v| v == 1,
+				&b, |v| {
+					info!(target: "babe", "runtime version number: {}", v);
+					v == 1
+				},
 			)?;
 			let has_api_v2 = a.has_api_with::<dyn BabeApi<B, Error = sp_blockchain::Error>, _>(
-				&b, |v| v == 2,
+				&b, |v| {
+					info!(target: "babe", "runtime version number: {}", v);
+
+					v == 2
+				},
 			)?;
 
 			if has_api_v1 {
