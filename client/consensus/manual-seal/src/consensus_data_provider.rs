@@ -22,11 +22,22 @@
 use sp_runtime::traits::{Block as BlockT, DigestFor};
 use sp_inherents::InherentData;
 use super::Error;
+use sp_consensus::BlockImportParams;
 
 pub mod babe;
 
 /// Digest factory, for inclusion in blocks.
-pub trait DigestProvider<B: BlockT>: Send + Sync {
+pub trait ConsensusDataProvider<B: BlockT> : Send + Sync {
+	type Transaction;
+
 	/// Attempt to create a consensus digest.
-	fn create_digest(&self, parent: &B::Header, provider: &InherentData) -> Result<DigestFor<B>, Error>;
+	fn create_digest(&self, parent: &B::Header, inherents: &InherentData) -> Result<DigestFor<B>, Error>;
+
+	/// set up the neccessary import params.
+	fn append_block_import(
+		&self,
+		parent: &B::Header,
+		params: &mut BlockImportParams<B, Self::Transaction>,
+		inherents: &InherentData
+	) -> Result<(), Error>;
 }

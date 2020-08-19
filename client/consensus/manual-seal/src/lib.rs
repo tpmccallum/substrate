@@ -34,18 +34,18 @@ use prometheus_endpoint::Registry;
 
 mod error;
 mod finalize_block;
-pub mod digest;
+pub mod consensus_data_provider;
 mod seal_block;
 pub mod rpc;
 
 pub use self::{
 	error::Error,
-	digest::DigestProvider,
+	consensus_data_provider::ConsensusDataProvider,
 	finalize_block::{finalize_block, FinalizeBlockParams},
 	seal_block::{SealBlockParams, seal_block, MAX_PROPOSAL_DURATION},
 	rpc::{EngineCommand, CreatedBlock},
 };
-use sp_api::ProvideRuntimeApi;
+use sp_api::{ProvideRuntimeApi, TransactionFor};
 
 /// The verifier for the manual seal engine; instantly finalizes.
 struct ManualSealVerifier;
@@ -89,7 +89,7 @@ pub fn import_queue<Block, Transaction>(
 }
 
 /// Params required to start the instant sealing authorship task.
-pub struct ManualSealParams<B: BlockT, BI, E, C, A: txpool::ChainApi, SC, CS> {
+pub struct ManualSealParams<B: BlockT, BI, E, C: ProvideRuntimeApi<B>, A: txpool::ChainApi, SC, CS> {
 	/// Block import instance for well. importing blocks.
 	pub block_import: BI,
 
@@ -110,14 +110,14 @@ pub struct ManualSealParams<B: BlockT, BI, E, C, A: txpool::ChainApi, SC, CS> {
 	pub select_chain: SC,
 
 	/// Digest provider for inclusion in blocks.
-	pub digest_provider: Option<Box<dyn DigestProvider<B>>>,
+	pub digest_provider: Option<Box<dyn ConsensusDataProvider<B, Transaction = TransactionFor<C, B>>>>,
 
 	/// Provider for inherents to include in blocks.
 	pub inherent_data_providers: InherentDataProviders,
 }
 
 /// Params required to start the manual sealing authorship task.
-pub struct InstantSealParams<B, BI, E, C, A: txpool::ChainApi, SC> {
+pub struct InstantSealParams<B: BlockT, BI, E, C: ProvideRuntimeApi<B>, A: txpool::ChainApi, SC> {
 	/// Block import instance for well. importing blocks.
 	pub block_import: BI,
 
@@ -134,7 +134,7 @@ pub struct InstantSealParams<B, BI, E, C, A: txpool::ChainApi, SC> {
 	pub select_chain: SC,
 
 	/// Digest provider for inclusion in blocks.
-	pub digest_provider: Option<Box<dyn DigestProvider<B>>>,
+	pub digest_provider: Option<Box<dyn ConsensusDataProvider<B, Transaction = TransactionFor<C, B>>>>,
 
 	/// Provider for inherents to include in blocks.
 	pub inherent_data_providers: InherentDataProviders,

@@ -20,20 +20,23 @@
 
 use std::sync::Arc;
 use sc_keystore::KeyStorePtr;
-use crate::digest::DigestProvider;
+use crate::consensus_data_provider::ConsensusDataProvider;
 use crate::Error;
 use sc_consensus_babe::{
-	Config, Epoch, authorship, CompatibleDigestItem,
-	aux_schema::load_epoch_changes, register_babe_inherent_data_provider
+	Config, Epoch, authorship, CompatibleDigestItem, aux_schema::load_epoch_changes,
+	register_babe_inherent_data_provider, INTERMEDIATE_KEY, BabeIntermediate,
 };
 use sp_consensus_babe::{BabeApi, inherents::BabeInherentData};
 use sp_inherents::{InherentDataProviders, InherentData};
 use sp_runtime::traits::{DigestItemFor, DigestFor, Block as BlockT, Header as _};
 use sp_runtime::generic::Digest;
 use sc_client_api::AuxStore;
-use sp_api::ProvideRuntimeApi;
+use sp_api::{ProvideRuntimeApi, TransactionFor};
 use sc_consensus_epochs::{SharedEpochChanges, descendent_query};
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
+use sp_consensus::BlockImportParams;
+use std::borrow::Cow;
+use std::any::Any;
 
 /// Provides BABE compatible predigests for inclusion in blocks.
 /// Intended to be used with BABE runtimes.
@@ -74,12 +77,14 @@ impl<B, C> BabeDigestProvider<B, C>
 	}
 }
 
-impl<B, C> DigestProvider<B> for BabeDigestProvider<B, C>
+impl<B, C> ConsensusDataProvider<B> for BabeDigestProvider<B, C>
 	where
 		B: BlockT,
 		C: AuxStore + HeaderBackend<B> + HeaderMetadata<B, Error = sp_blockchain::Error> + ProvideRuntimeApi<B>,
 		C::Api: BabeApi<B, Error = sp_blockchain::Error>,
 {
+	type Transaction = TransactionFor<C, B>;
+
 	fn create_digest(&self, parent: &B::Header, inherents: &InherentData) -> Result<DigestFor<B>, Error> {
 		let slot_number = inherents.babe_inherent_data()?;
 
@@ -103,5 +108,31 @@ impl<B, C> DigestProvider<B> for BabeDigestProvider<B, C>
 				<DigestItemFor<B> as CompatibleDigestItem>::babe_pre_digest(predigest),
 			],
 		})
+	}
+
+	fn append_block_import(
+		&self,
+		parent: &B::Header,
+		params: &mut BlockImportParams<B, Self::Transaction>,
+		inherents: &InherentData
+	) -> Result<(), Error> {
+		let slot_number = inherents.babe_inherent_data()?;
+
+		let epoch_descriptor = self.epoch_changes.lock()
+			.epoch_descriptor_for_child_of(
+				descendent_query(&*self.client),
+				&parent.hash(),
+				parent.number().clone(),
+				slot_number,
+			)
+			.map_err(|e| Error::StringError(format!("failed to fetch epoch data: {}", e)))?
+			.ok_or_else(|| sp_consensus::Error::InvalidAuthoritiesSet)?;
+
+		params.intermediates.insert(
+			Cow::from(INTERMEDIATE_KEY),
+			Box::new(BabeIntermediate::<B> { epoch_descriptor }) as Box<dyn Any>,
+		);
+
+		Ok(())
 	}
 }

@@ -206,7 +206,7 @@ pub fn authority_keys_from_seed(seed: &str) -> (
 
 /// Helper function to create GenesisConfig for testing
 pub fn testnet_genesis(
-	initial_authorities: Vec<(
+		initial_authorities: Vec<(
 		AccountId,
 		AccountId,
 		GrandpaId,
