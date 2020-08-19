@@ -97,7 +97,10 @@ impl<B, C> ConsensusDataProvider<B> for BabeDigestProvider<B, C>
 				|slot| Epoch::genesis(&self.config, slot),
 			)
 			.map_err(|e| Error::StringError(format!("failed to fetch epoch data: {}", e)))?
-			.ok_or_else(|| sp_consensus::Error::InvalidAuthoritiesSet)?;
+			.ok_or_else(|| {
+				log::info!(target: "babe", "no epoch data :(");
+				sp_consensus::Error::InvalidAuthoritiesSet
+			})?;
 
 		// this is a dev node environment, we should always be able to claim a slot.
 		let (predigest, _) = authorship::claim_slot(slot_number, &epoch, &self.keystore)
@@ -126,7 +129,10 @@ impl<B, C> ConsensusDataProvider<B> for BabeDigestProvider<B, C>
 				slot_number,
 			)
 			.map_err(|e| Error::StringError(format!("failed to fetch epoch data: {}", e)))?
-			.ok_or_else(|| sp_consensus::Error::InvalidAuthoritiesSet)?;
+			.ok_or_else(|| {
+				log::info!(target: "babe", "no epoch data :(");
+				sp_consensus::Error::InvalidAuthoritiesSet
+			})?;
 
 		params.intermediates.insert(
 			Cow::from(INTERMEDIATE_KEY),
