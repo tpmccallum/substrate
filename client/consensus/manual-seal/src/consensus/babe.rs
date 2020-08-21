@@ -42,7 +42,6 @@ use sc_consensus_epochs::{SharedEpochChanges, descendent_query};
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
 use sp_consensus::BlockImportParams;
 
-
 /// Provides BABE compatible predigests for inclusion in blocks.
 /// Intended to be used with BABE runtimes.
 pub struct BabeConsensusDataProvider<B: BlockT, C> {
@@ -95,8 +94,6 @@ impl<B, C> ConsensusDataProvider<B> for BabeConsensusDataProvider<B, C>
 	type Transaction = TransactionFor<C, B>;
 
 	fn create_digest(&self, parent: &B::Header, inherents: &InherentData) -> Result<DigestFor<B>, Error> {
-		log::info!(target: "babe", "Parent block header {:#?}", parent);
-
 		let slot_number = inherents.babe_inherent_data()?;
 
 		let epoch_changes = self.epoch_changes.lock();
@@ -108,10 +105,7 @@ impl<B, C> ConsensusDataProvider<B> for BabeConsensusDataProvider<B, C>
 				slot_number,
 			)
 			.map_err(|e| Error::StringError(format!("failed to fetch epoch_descriptor: {}", e)))?
-			.ok_or_else(|| {
-				log::info!(target: "babe", "create_digest: no epoch_descriptor :(");
-				sp_consensus::Error::InvalidAuthoritiesSet
-			})?;
+			.ok_or_else(|| sp_consensus::Error::InvalidAuthoritiesSet)?;
 		
 		let epoch = epoch_changes
 			.viable_epoch(
@@ -150,10 +144,7 @@ impl<B, C> ConsensusDataProvider<B> for BabeConsensusDataProvider<B, C>
 				slot_number,
 			)
 			.map_err(|e| Error::StringError(format!("failed to fetch epoch data: {}", e)))?
-			.ok_or_else(|| {
-				log::info!(target: "babe", "append_block_import: no epoch data :(");
-				sp_consensus::Error::InvalidAuthoritiesSet
-			})?;
+			.ok_or_else(|| sp_consensus::Error::InvalidAuthoritiesSet)?;
 
 		params.intermediates.insert(
 			Cow::from(INTERMEDIATE_KEY),
