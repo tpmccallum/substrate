@@ -86,6 +86,8 @@ impl<B, C> ConsensusDataProvider<B> for BabeDigestProvider<B, C>
 	type Transaction = TransactionFor<C, B>;
 
 	fn create_digest(&self, parent: &B::Header, inherents: &InherentData) -> Result<DigestFor<B>, Error> {
+		log::info!(target: "babe", "Header {:#?}", parent);
+
 		let slot_number = inherents.babe_inherent_data()?;
 
 		let epoch = self.epoch_changes.lock()
