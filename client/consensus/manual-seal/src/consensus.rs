@@ -16,8 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! Utilities for creating digests
-//!
+//! Extensions for manual seal to produce blocks valid for any runtime.
 
 use sp_runtime::traits::{Block as BlockT, DigestFor};
 use sp_inherents::InherentData;
@@ -26,8 +25,10 @@ use sp_consensus::BlockImportParams;
 
 pub mod babe;
 
-/// Digest factory, for inclusion in blocks.
+/// Consensus data provider, manual seal uses this trait object for authoring blocks valid 
+/// for any runtime.
 pub trait ConsensusDataProvider<B: BlockT> : Send + Sync {
+	/// Block import transaction type
 	type Transaction;
 
 	/// Attempt to create a consensus digest.

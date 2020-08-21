@@ -16,31 +16,36 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! BABE compatible digest provider
+//! BABE consensus data provider
+
+use super::ConsensusDataProvider;
+use crate::Error;
 
 use std::sync::Arc;
+use std::borrow::Cow;
+use std::any::Any;
+
 use sc_keystore::KeyStorePtr;
-use crate::consensus_data_provider::ConsensusDataProvider;
-use crate::Error;
 use sc_consensus_babe::{
 	Config, Epoch, authorship, CompatibleDigestItem, aux_schema::load_epoch_changes,
 	register_babe_inherent_data_provider, INTERMEDIATE_KEY, BabeIntermediate,
 };
 use sp_consensus_babe::{BabeApi, inherents::BabeInherentData};
 use sp_inherents::{InherentDataProviders, InherentData};
-use sp_runtime::traits::{DigestItemFor, DigestFor, Block as BlockT, Header as _};
-use sp_runtime::generic::Digest;
+use sp_runtime::{
+	traits::{DigestItemFor, DigestFor, Block as BlockT, Header as _},
+	generic::Digest,
+};
 use sc_client_api::AuxStore;
 use sp_api::{ProvideRuntimeApi, TransactionFor};
 use sc_consensus_epochs::{SharedEpochChanges, descendent_query};
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
 use sp_consensus::BlockImportParams;
-use std::borrow::Cow;
-use std::any::Any;
+
 
 /// Provides BABE compatible predigests for inclusion in blocks.
 /// Intended to be used with BABE runtimes.
-pub struct BabeDigestProvider<B: BlockT, C> {
+pub struct BabeConsensusDataProvider<B: BlockT, C> {
 	/// shared reference to keystore
 	keystore: KeyStorePtr,
 
@@ -57,7 +62,7 @@ pub struct BabeDigestProvider<B: BlockT, C> {
 /// num of blocks per slot
 const SLOT_DURATION: u64 = 6;
 
-impl<B, C> BabeDigestProvider<B, C>
+impl<B, C> BabeConsensusDataProvider<B, C>
 	where
 		B: BlockT,
 		C: AuxStore + ProvideRuntimeApi<B>,
@@ -77,7 +82,7 @@ impl<B, C> BabeDigestProvider<B, C>
 	}
 }
 
-impl<B, C> ConsensusDataProvider<B> for BabeDigestProvider<B, C>
+impl<B, C> ConsensusDataProvider<B> for BabeConsensusDataProvider<B, C>
 	where
 		B: BlockT,
 		C: AuxStore + HeaderBackend<B> + HeaderMetadata<B, Error = sp_blockchain::Error> + ProvideRuntimeApi<B>,
@@ -86,26 +91,37 @@ impl<B, C> ConsensusDataProvider<B> for BabeDigestProvider<B, C>
 	type Transaction = TransactionFor<C, B>;
 
 	fn create_digest(&self, parent: &B::Header, inherents: &InherentData) -> Result<DigestFor<B>, Error> {
-		log::info!(target: "babe", "Header {:#?}", parent);
+		log::info!(target: "babe", "Parent block header {:#?}", parent);
 
 		let slot_number = inherents.babe_inherent_data()?;
 
-		let epoch = self.epoch_changes.lock()
-			.epoch_data_for_child_of(
+		let epoch_changes = self.epoch_changes.lock();
+
+		let epoch_descriptor = epoch_changes
+			.epoch_descriptor_for_child_of(
 				descendent_query(&*self.client),
 				&parent.hash(),
 				parent.number().clone(),
 				slot_number,
+			)
+			.map_err(|e| Error::StringError(format!("failed to fetch epoch_descriptor: {}", e)))?
+			.ok_or_else(|| {
+				log::info!(target: "babe", "create_digest: no epoch_descriptor :(");
+				sp_consensus::Error::InvalidAuthoritiesSet
+			})?;
+		
+		let epoch = epoch_changes
+			.viable_epoch(
+				&epoch_descriptor,
 				|slot| Epoch::genesis(&self.config, slot),
 			)
-			.map_err(|e| Error::StringError(format!("failed to fetch epoch data: {}", e)))?
 			.ok_or_else(|| {
-				log::info!(target: "babe", "no epoch data :(");
+				log::info!(target: "babe", "create_digest: no viable_epoch :(");
 				sp_consensus::Error::InvalidAuthoritiesSet
 			})?;
 
 		// this is a dev node environment, we should always be able to claim a slot.
-		let (predigest, _) = authorship::claim_slot(slot_number, &epoch, &self.keystore)
+		let (predigest, _) = authorship::claim_slot(slot_number, epoch.as_ref(), &self.keystore)
 			.ok_or_else(|| Error::StringError("failed to claim slot for authorship".into()))?;
 
 		Ok(Digest {

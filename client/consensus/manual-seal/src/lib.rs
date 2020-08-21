@@ -34,13 +34,14 @@ use prometheus_endpoint::Registry;
 
 mod error;
 mod finalize_block;
-pub mod consensus_data_provider;
 mod seal_block;
+
+pub mod consensus;
 pub mod rpc;
 
 pub use self::{
 	error::Error,
-	consensus_data_provider::ConsensusDataProvider,
+	consensus::ConsensusDataProvider,
 	finalize_block::{finalize_block, FinalizeBlockParams},
 	seal_block::{SealBlockParams, seal_block, MAX_PROPOSAL_DURATION},
 	rpc::{EngineCommand, CreatedBlock},
