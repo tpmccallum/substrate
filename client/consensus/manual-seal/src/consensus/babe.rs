@@ -27,8 +27,8 @@ use std::any::Any;
 
 use sc_keystore::KeyStorePtr;
 use sc_consensus_babe::{
-	Config, Epoch, authorship, CompatibleDigestItem, aux_schema::load_epoch_changes,
-	register_babe_inherent_data_provider, INTERMEDIATE_KEY, BabeIntermediate,
+	Config, Epoch, authorship, CompatibleDigestItem, BabeIntermediate,
+	register_babe_inherent_data_provider, INTERMEDIATE_KEY,
 };
 use sp_consensus_babe::{BabeApi, inherents::BabeInherentData};
 use sp_inherents::{InherentDataProviders, InherentData};
@@ -68,9 +68,13 @@ impl<B, C> BabeConsensusDataProvider<B, C>
 		C: AuxStore + ProvideRuntimeApi<B>,
 		C::Api: BabeApi<B, Error = sp_blockchain::Error>,
 {
-	pub fn new(client: Arc<C>, keystore: KeyStorePtr, provider: &InherentDataProviders) -> Result<Self, Error> {
+	pub fn new(
+		client: Arc<C>,
+		keystore: KeyStorePtr,
+		provider: &InherentDataProviders,
+		epoch_changes: SharedEpochChanges<B, Epoch>,
+	) -> Result<Self, Error> {
 		let config = Config::get_or_compute(&*client)?;
-		let epoch_changes = load_epoch_changes::<B, _>(&*client, &config)?;
 		register_babe_inherent_data_provider(provider, SLOT_DURATION)?;
 
 		Ok(Self {
