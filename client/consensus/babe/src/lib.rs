@@ -288,19 +288,8 @@ impl Config {
 	{
 		trace!(target: "babe", "Getting slot duration");
 		match sc_consensus_slots::SlotDuration::get_or_compute(client, |a, b| {
-			let has_api_v1 = a.has_api_with::<dyn BabeApi<B, Error = sp_blockchain::Error>, _>(
-				&b, |v| {
-					info!(target: "babe", "runtime version number: {}", v);
-					v == 1
-				},
-			)?;
-			let has_api_v2 = a.has_api_with::<dyn BabeApi<B, Error = sp_blockchain::Error>, _>(
-				&b, |v| {
-					info!(target: "babe", "runtime version number: {}", v);
-
-					v == 2
-				},
-			)?;
+			let has_api_v1 = a.has_api_with::<dyn BabeApi<B, Error = sp_blockchain::Error>, _>(&b, |v| v == 1)?;
+			let has_api_v2 = a.has_api_with::<dyn BabeApi<B, Error = sp_blockchain::Error>, _>(&b, |v| v == 2)?;
 
 			if has_api_v1 {
 				#[allow(deprecated)] {
@@ -711,7 +700,7 @@ fn find_pre_digest<B: BlockT>(header: &B::Header) -> Result<PreDigest, Error<B>>
 		trace!(target: "babe", "Checking log {:?}, looking for pre runtime digest", log);
 		match (log.as_babe_pre_digest(), pre_digest.is_some()) {
 			(Some(_), true) => return Err(babe_err(Error::MultiplePreRuntimeDigests)),
-			(None, _) => trace!(target: "babe", "Ignoring digest not meant for us"),
+			(None, _) => trace!(target: "babe", "find_pre_digest: Ignoring digest not meant for us"),
 			(s, false) => pre_digest = s,
 		}
 	}
@@ -730,7 +719,7 @@ fn find_next_epoch_digest<B: BlockT>(header: &B::Header)
 		match (log, epoch_digest.is_some()) {
 			(Some(ConsensusLog::NextEpochData(_)), true) => return Err(babe_err(Error::MultipleEpochChangeDigests)),
 			(Some(ConsensusLog::NextEpochData(epoch)), false) => epoch_digest = Some(epoch),
-			_ => trace!(target: "babe", "Ignoring digest not meant for us"),
+			_ => trace!(target: "babe", "find_next_epoch_digest: Ignoring digest not meant for us"),
 		}
 	}
 
@@ -749,7 +738,7 @@ fn find_next_config_digest<B: BlockT>(header: &B::Header)
 		match (log, config_digest.is_some()) {
 			(Some(ConsensusLog::NextConfigData(_)), true) => return Err(babe_err(Error::MultipleConfigChangeDigests)),
 			(Some(ConsensusLog::NextConfigData(config)), false) => config_digest = Some(config),
-			_ => trace!(target: "babe", "Ignoring digest not meant for us"),
+			_ => trace!(target: "babe", "find_next_config_digest: Ignoring digest not meant for us"),
 		}
 	}
 

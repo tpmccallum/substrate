@@ -96,7 +96,6 @@ impl<B, C> ConsensusDataProvider<B> for BabeConsensusDataProvider<B, C>
 		let slot_number = inherents.babe_inherent_data()?;
 
 		let epoch_changes = self.epoch_changes.lock();
-
 		let epoch_descriptor = epoch_changes
 			.epoch_descriptor_for_child_of(
 				descendent_query(&*self.client),
