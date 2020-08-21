@@ -132,7 +132,7 @@ impl<B, C> ConsensusDataProvider<B> for BabeDigestProvider<B, C>
 			)
 			.map_err(|e| Error::StringError(format!("failed to fetch epoch data: {}", e)))?
 			.ok_or_else(|| {
-				log::info!(target: "babe", "no epoch data :(");
+				log::info!(target: "babe", "append_block_import: no epoch data :(");
 				sp_consensus::Error::InvalidAuthoritiesSet
 			})?;
 

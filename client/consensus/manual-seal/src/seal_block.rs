@@ -100,7 +100,7 @@ pub async fn seal_block<B, BI, SC, C, E, P>(
 		// get the header to build this new block on.
 		// use the parent_hash supplied via `EngineCommand`
 		// or fetch the best_block.
-		let header = match parent_hash {
+		let parent = match parent_hash {
 			Some(hash) => {
 				match client.header(BlockId::Hash(hash))? {
 					Some(header) => header,
@@ -110,13 +110,13 @@ pub async fn seal_block<B, BI, SC, C, E, P>(
 			None => select_chain.best_chain()?
 		};
 
-		let proposer = env.init(&header)
+		let proposer = env.init(&parent)
 			.map_err(|err| Error::StringError(format!("{}", err))).await?;
 		let id = inherent_data_provider.create_inherent_data()?;
 		let inherents_len = id.len();
 
 		let digest = if let Some(digest_provider) = digest_provider {
-			digest_provider.create_digest(&header, &id)?
+			digest_provider.create_digest(&parent, &id)?
 		} else {
 			Default::default()
 		};
@@ -135,7 +135,7 @@ pub async fn seal_block<B, BI, SC, C, E, P>(
 		params.fork_choice = Some(ForkChoiceStrategy::LongestChain);
 
 		if let Some(digest_provider) = digest_provider {
-			digest_provider.append_block_import(&header, &mut params, &id)?;
+			digest_provider.append_block_import(&parent, &mut params, &id)?;
 		}
 
 		match block_import.import_block(params, HashMap::new())? {
