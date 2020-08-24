@@ -26,7 +26,7 @@ use sp_runtime::{
 	Perbill, DispatchResult,
 };
 use frame_support::{
-	traits::{Get},
+	traits::{Get}, debug,
 	weights::{PostDispatchInfo, DispatchInfo, DispatchClass},
 	StorageValue,
 };
@@ -61,6 +61,7 @@ impl<T: Trait + Send + Sync> CheckWeight<T> where
 			DispatchClass::Normal => {
 				let maximum_weight = T::MaximumExtrinsicWeight::get();
 				let extrinsic_weight = info.weight.saturating_add(T::ExtrinsicBaseWeight::get());
+				debug::info!("maximum_weight: {}\nextrinsic_weight: {}", maximum_weight, extrinsic_weight);
 				if extrinsic_weight > maximum_weight {
 					Err(InvalidTransaction::ExhaustsResources.into())
 				} else {
