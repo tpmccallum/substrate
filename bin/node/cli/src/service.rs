@@ -159,8 +159,9 @@ pub fn new_full_base(
 		&sc_consensus_babe::BabeLink<Block>,
 	)
 ) -> Result<(
-	TaskManager, InherentDataProviders, Arc<FullClient>,
+	TaskManager, InherentDataProviders, Arc<FullClient>, Arc<FullBackend>,
 	Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
+	sc_service::NetworkStatusSinks<Block>,
 	Arc<sc_transaction_pool::FullPool<Block, FullClient>>,
 ), ServiceError> {
 	let sc_service::PartialComponents {
@@ -210,7 +211,7 @@ pub fn new_full_base(
 		on_demand: None,
 		remote_blockchain: None,
 		telemetry_connection_sinks: telemetry_connection_sinks.clone(),
-		network_status_sinks,
+		network_status_sinks: network_status_sinks.clone(),
 		system_rpc_tx,
 	})?;
 
@@ -330,13 +331,13 @@ pub fn new_full_base(
 	}
 
 	network_starter.start_network();
-	Ok((task_manager, inherent_data_providers, client, network, transaction_pool))
+	Ok((task_manager, inherent_data_providers, client, backend, network, network_status_sinks, transaction_pool))
 }
 
 /// Builds a new service for a full client.
 pub fn new_full(config: Configuration)
 -> Result<TaskManager, ServiceError> {
-	new_full_base(config, |_, _| ()).map(|(task_manager, _, _, _, _)| {
+	new_full_base(config, |_, _| ()).map(|(task_manager, ..)| {
 		task_manager
 	})
 }

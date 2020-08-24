@@ -21,7 +21,7 @@ use node_executor::Executor;
 use node_runtime::{Block, RuntimeApi};
 use sc_cli::{Result, SubstrateCli, RuntimeVersion, Role, ChainSpec};
 use sc_service::PartialComponents;
-use crate::service::new_partial;
+use crate::service::{new_partial, new_full_base};
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
@@ -99,7 +99,14 @@ pub fn run() -> Result<()> {
 		Some(Subcommand::Vanity(cmd)) => cmd.run(),
 		Some(Subcommand::BuildSpec(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
-			runner.sync_run(|config| cmd.run(config.chain_spec, config.network))
+			runner.async_run(|config| {
+				let chain_spec = config.chain_spec.cloned_box();
+				let network_config = config.network.clone();
+				let (task_manager, _, client, backend, _, network_status_sinks, _)
+					= new_full_base(config, |_, _| ())?;
+
+				Ok((cmd.run(chain_spec, network_config, client, backend, network_status_sinks), task_manager))
+			})
 		},
 		Some(Subcommand::CheckBlock(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
