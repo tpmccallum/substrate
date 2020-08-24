@@ -150,6 +150,7 @@ impl<T: Trait + Send + Sync> CheckWeight<T> where
 		let limit = Self::get_dispatch_limit_ratio(info.class) * maximum_len;
 		let added_len = len as u32;
 		let next_len = current_len.saturating_add(added_len);
+		debug::info!("next_block_len: {}, limit: {}", next_len, limit);
 		if next_len > limit {
 			Err(InvalidTransaction::ExhaustsResources.into())
 		} else {
