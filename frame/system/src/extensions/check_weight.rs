@@ -108,7 +108,9 @@ impl<T: Trait + Send + Sync> CheckWeight<T> where
 					.ok_or(InvalidTransaction::ExhaustsResources)?;
 				all_weight.checked_add(extrinsic_weight, DispatchClass::Normal)
 					.map_err(|_| InvalidTransaction::ExhaustsResources)?;
-				if all_weight.get(DispatchClass::Normal) > normal_limit {
+				let total = all_weight.get(DispatchClass::Normal);
+				debug::info!("total_block_weight: {}, normal_limit: {}", total, normal_limit);
+				if total > normal_limit {
 					Err(InvalidTransaction::ExhaustsResources.into())
 				} else {
 					Ok(all_weight)
