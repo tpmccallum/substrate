@@ -250,9 +250,8 @@ impl<A, B, Block, C> Proposer<B, Block, C, A>
 				Ok(()) => {
 					debug!("[{:?}] Pushed to the block.", pending_tx_hash);
 				}
-				Err(ApplyExtrinsicFailed(Validity(e)))
-				debug!("ApplyExtrinsicFailed: {:#?}", e);
-				if e.exhausted_resources() => {
+				Err(ApplyExtrinsicFailed(Validity(e))) if e.exhausted_resources() => {
+					debug!("ApplyExtrinsicFailed: {:#?}", e);
 					if skipped < MAX_SKIPPED_TRANSACTIONS {
 						skipped += 1;
 						debug!(
