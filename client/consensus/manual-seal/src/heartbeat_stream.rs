@@ -18,8 +18,11 @@ const DEFAULT_FINALIZE: bool = false;
 
 // ---
 pub struct HeartbeatOptions {
+	// the amount of time passed that a new heartbeat block will be generated, in sec.
 	pub timeout: u64,
+	// the minimum amount of time to pass before generating another block, in sec.
 	pub min_blocktime: u64,
+	// whether the generated heartbeat block is finalized
 	pub finalize: bool,
 }
 

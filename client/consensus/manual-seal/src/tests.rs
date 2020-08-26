@@ -44,7 +44,7 @@ async fn instant_seal() {
 	let stream = pool.pool().validated_pool().import_notification_stream()
 		.map(move |_| {
 			// we're only going to submit one tx so this fn will only be called once.
-			let mut_sender =  Arc::get_mut(&mut sender).unwrap();
+			let mut_sender = Arc::get_mut(&mut sender).unwrap();
 			let sender = std::mem::take(mut_sender);
 			EngineCommand::SealNewBlock {
 				create_empty: false,
