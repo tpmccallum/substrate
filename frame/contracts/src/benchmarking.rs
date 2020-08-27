@@ -1168,7 +1168,7 @@ benchmarks! {
 		let origin = RawOrigin::Signed(instance.caller.clone());
 	}: call(origin, instance.addr, 0.into(), Weight::max_value(), vec![])
 
-	seal_call_per_transfer_input_output {
+	seal_call_per_transfer_input_output_kb {
 		let t in 0 .. 1;
 		let i in 0 .. max_pages::<T>() * 64;
 		let o in 0 .. (max_pages::<T>() - 1) * 64;
@@ -1252,6 +1252,7 @@ benchmarks! {
 		let origin = RawOrigin::Signed(instance.caller.clone());
 	}: call(origin, instance.addr, 0.into(), Weight::max_value(), vec![])
 
+	// We assume that every instantiate sends at least the subsistence amount.
 	seal_instantiate {
 		let r in 0 .. API_BENCHMARK_BATCHES;
 		let code = dummy_code::<T>();
@@ -1321,6 +1322,127 @@ benchmarks! {
 				Regular(Instruction::I32Const(addr_len_offset as i32)), // address_len_ptr
 				Regular(Instruction::I32Const(u32::max_value() as i32)), // output_ptr
 				Regular(Instruction::I32Const(0)), // output_len_ptr
+				Regular(Instruction::Call(0)),
+				Regular(Instruction::Drop),
+			])),
+			.. Default::default()
+		});
+		let instance = instantiate_contract::<T>(code, vec![], Endow::Max)?;
+		let origin = RawOrigin::Signed(instance.caller.clone());
+		let addresses = inputs
+			.iter()
+			.map(|input| T::DetermineContractAddress::contract_address_for(
+				&hash, input, &instance.account_id
+			))
+			.collect::<Vec<_>>();
+
+		for addr in &addresses {
+			if let Some(_) = ContractInfoOf::<T>::get(&addr) {
+				return Err("Expected that contract does not exist at this point.");
+			}
+		}
+	}: call(origin, instance.addr, 0.into(), Weight::max_value(), vec![])
+	verify {
+		for addr in &addresses {
+			ensure_alive::<T>(addr)?;
+		}
+	}
+
+	seal_instantiate_per_input_output_kb {
+		let i in 0 .. (max_pages::<T>() - 1) * 64;
+		let o in 0 .. (max_pages::<T>() - 1) * 64;
+		let code = create_code::<T>(ModuleDefinition {
+			memory: Some(ImportedMemory::max::<T>()),
+			imported_functions: vec![ImportedFunction {
+				name: "seal_return",
+				params: vec![
+					ValueType::I32,
+					ValueType::I32,
+					ValueType::I32,
+				],
+				return_type: None,
+			}],
+			call_body: Some(body(vec![
+				Instruction::I32Const(0), // flags
+				Instruction::I32Const(0), // data_ptr
+				Instruction::I32Const((o * 1024) as i32), // data_len
+				Instruction::Call(0),
+				Instruction::End,
+			])),
+			.. Default::default()
+		});
+		let hash = code.hash.clone();
+		let hash_bytes = code.hash.encode();
+		let hash_len = hash_bytes.len();
+		Contracts::<T>::put_code_raw(code.code)?;
+		let inputs = (0..API_BENCHMARK_BATCH_SIZE).map(|i| i.encode()).collect::<Vec<_>>();
+		let input_len = inputs.get(0).map(|i| i.len()).unwrap_or(0);
+		let input_bytes = inputs.iter().cloned().flatten().collect::<Vec<_>>();
+		let inputs_len = input_bytes.len();
+		let value = Config::<T>::subsistence_threshold_uncached();
+		assert!(value > 0.into());
+		let value_bytes = value.encode();
+		let value_len = value_bytes.len();
+		let addr_len = sp_std::mem::size_of::<T::AccountId>();
+		let hash_offset = value_len;
+		let input_offset = hash_offset + hash_len;
+		let addr_len_offset = input_offset + inputs_len;
+		let output_len_offset = addr_len_offset + 4;
+		let output_offset = output_len_offset + 4;
+		use CountedInstruction::{Counter, Regular};
+		let code = create_code::<T>(ModuleDefinition {
+			memory: Some(ImportedMemory::max::<T>()),
+			imported_functions: vec![ImportedFunction {
+				name: "seal_instantiate",
+				params: vec![
+					ValueType::I32,
+					ValueType::I32,
+					ValueType::I64,
+					ValueType::I32,
+					ValueType::I32,
+					ValueType::I32,
+					ValueType::I32,
+					ValueType::I32,
+					ValueType::I32,
+					ValueType::I32,
+					ValueType::I32
+				],
+				return_type: Some(ValueType::I32),
+			}],
+			data_segments: vec![
+				DataSegment {
+					offset: 0,
+					value: value_bytes,
+				},
+				DataSegment {
+					offset: hash_offset as u32,
+					value: hash_bytes,
+				},
+				DataSegment {
+					offset: input_offset as u32,
+					value: input_bytes,
+				},
+				DataSegment {
+					offset: addr_len_offset as u32,
+					value: addr_len.to_le_bytes().into(),
+				},
+				DataSegment {
+					offset: output_len_offset as u32,
+					value: (o * 1024).to_le_bytes().into(),
+				},
+			],
+			call_body: Some(body_counted(API_BENCHMARK_BATCH_SIZE, vec![
+				Regular(Instruction::I32Const(hash_offset as i32)), // code_hash_ptr
+				Regular(Instruction::I32Const(hash_len as i32)), // code_hash_len
+				Regular(Instruction::I64Const(0)), // gas
+				Regular(Instruction::I32Const(0)), // value_ptr
+				Regular(Instruction::I32Const(value_len as i32)), // value_len
+				Counter(input_offset as u32, input_len as u32), // input_data_ptr
+				Regular(Instruction::I32Const((i * 1024) as i32)), // input_data_len
+				Regular(Instruction::I32Const((addr_len_offset + addr_len) as i32)), // address_ptr
+				Regular(Instruction::I32Const(addr_len_offset as i32)), // address_len_ptr
+				Regular(Instruction::I32Const(output_offset as i32)), // output_ptr
+				Regular(Instruction::I32Const(output_len_offset as i32)), // output_len_ptr
 				Regular(Instruction::Call(0)),
 				Regular(Instruction::Drop),
 			])),
