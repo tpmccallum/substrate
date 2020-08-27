@@ -261,6 +261,7 @@ impl<B: BlockT + 'static, H: ExHashT> NetworkWorker<B, H> {
 			params.block_announce_validator,
 			params.metrics_registry.as_ref(),
 			boot_node_ids.clone(),
+			params.sync_info,
 		)?;
 
 		// Build the swarm.

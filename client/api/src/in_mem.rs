@@ -454,6 +454,13 @@ impl<Block: BlockT> light::Storage<Block> for Blockchain<Block>
 	fn usage_info(&self) -> Option<UsageInfo> {
 		None
 	}
+
+	fn set_header_cht_root(&self, block_number: NumberFor<Block>, root: <Block as BlockT>::Hash)
+		-> sp_blockchain::Result<()>
+	{
+		self.storage.write().header_cht_roots.insert(block_number, root);
+		Ok(())
+	}
 }
 
 impl<Block: BlockT> ProvideChtRoots<Block> for Blockchain<Block> {

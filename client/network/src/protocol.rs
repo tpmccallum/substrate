@@ -385,8 +385,9 @@ impl<B: BlockT, H: ExHashT> Protocol<B, H> {
 		block_announce_validator: Box<dyn BlockAnnounceValidator<B> + Send>,
 		metrics_registry: Option<&Registry>,
 		boot_node_ids: Arc<HashSet<PeerId>>,
+		sync_info: Option<sp_blockchain::Info<B>>,
 	) -> error::Result<(Protocol<B, H>, sc_peerset::PeersetHandle)> {
-		let info = chain.info();
+		let info = sync_info.unwrap_or_else(|| chain.info());
 		let sync = ChainSync::new(
 			config.roles,
 			chain.clone(),

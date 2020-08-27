@@ -42,9 +42,9 @@ use sc_network::NetworkService;
 use parking_lot::RwLock;
 use sp_runtime::generic::BlockId;
 use sp_runtime::traits::{
-	Block as BlockT, SaturatedConversion, HashFor, Zero, BlockIdTo,
+	Block as BlockT, SaturatedConversion, HashFor, Zero, BlockIdTo, One,
 };
-use sp_api::{ProvideRuntimeApi, CallApiAt};
+use sp_api::{ProvideRuntimeApi, CallApiAt, NumberFor};
 use sc_executor::{NativeExecutor, NativeExecutionDispatch, RuntimeInfo};
 use std::{collections::HashMap, sync::Arc};
 use wasm_timer::SystemTime;
@@ -58,9 +58,10 @@ use sc_client_api::{
 	BlockBackend, BlockchainEvents,
 	backend::StorageProvider,
 	proof_provider::ProofProvider,
-	execution_extensions::ExecutionExtensions
+	execution_extensions::ExecutionExtensions,
+	light::Storage,
 };
-use sp_blockchain::{HeaderMetadata, HeaderBackend};
+use sp_blockchain::{HeaderMetadata, HeaderBackend, Info};
 
 /// A utility trait for building an RPC extension given a `DenyUnsafe` instance.
 /// This is useful since at service definition time we don't know whether the
@@ -167,6 +168,7 @@ type TLightParts<TBl, TRtApi, TExecDisp> = (
 	Arc<RwLock<sc_keystore::Store>>,
 	TaskManager,
 	Arc<OnDemand<TBl>>,
+	Option<Info<TBl>>,
 );
 
 /// Light client backend type with a specific hash type.
@@ -301,6 +303,31 @@ pub fn new_light_parts<TBl, TRtApi, TExecDisp>(
 		};
 		sc_client_db::light::LightStorage::new(db_settings)?
 	};
+
+	let sync_info = if let Some(sync_state) = config.chain_spec.get_light_sync_state() {
+		let sync_state = sc_chain_spec::LightSyncState::<TBl>::from_serializable(sync_state)
+			.map_err(|err| err.to_string())?;
+
+		let mut number = NumberFor::<TBl>::one();
+
+		for root in sync_state.chts {
+			db_storage.set_header_cht_root(number, root)?;
+			log::trace!("Imported block {} from sync state", number);
+			number += sc_client_api::cht::size();
+		}
+
+		Some(Info {
+			best_hash: sync_state.best_hash,
+			best_number: sync_state.best_number,
+			finalized_hash: sync_state.finalized_hash,
+			finalized_number: sync_state.finalized_number,
+			genesis_hash: sync_state.genesis_hash,
+			number_leaves: 1,
+		})
+	} else {
+		None
+	};
+
 	let light_blockchain = sc_light::new_light_blockchain(db_storage);
 	let fetch_checker = Arc::new(
 		sc_light::new_fetch_checker::<_, TBl, _>(
@@ -319,7 +346,7 @@ pub fn new_light_parts<TBl, TRtApi, TExecDisp>(
 		config.prometheus_config.as_ref().map(|config| config.registry.clone()),
 	)?);
 
-	Ok((client, backend, keystore, task_manager, on_demand))
+	Ok((client, backend, keystore, task_manager, on_demand, sync_info))
 }
 
 /// Create an instance of db-backed client.
@@ -812,6 +839,7 @@ pub struct BuildNetworkParams<'a, TBl: BlockT, TExPool, TImpQu, TCl> {
 	pub finality_proof_request_builder: Option<BoxFinalityProofRequestBuilder<TBl>>,
 	/// An optional, shared finality proof request provider.
 	pub finality_proof_provider: Option<Arc<dyn FinalityProofProvider<TBl>>>,
+	pub sync_info: Option<Info<TBl>>,
 }
 
 /// Build the network service, the network status sinks and an RPC sender.
@@ -835,7 +863,7 @@ pub fn build_network<TBl, TExPool, TImpQu, TCl>(
 		TImpQu: ImportQueue<TBl> + 'static,
 {
 	let BuildNetworkParams {
-		config, client, transaction_pool, spawn_handle, import_queue, on_demand,
+		config, client, transaction_pool, spawn_handle, import_queue, on_demand, sync_info,
 		block_announce_validator_builder, finality_proof_request_builder, finality_proof_provider,
 	} = params;
 
@@ -881,7 +909,8 @@ pub fn build_network<TBl, TExPool, TImpQu, TCl>(
 		import_queue: Box::new(import_queue),
 		protocol_id,
 		block_announce_validator,
-		metrics_registry: config.prometheus_config.as_ref().map(|config| config.registry.clone())
+		metrics_registry: config.prometheus_config.as_ref().map(|config| config.registry.clone()),
+		sync_info,
 	};
 
 	let has_bootnodes = !network_params.network_config.boot_nodes.is_empty();

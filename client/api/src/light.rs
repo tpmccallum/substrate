@@ -261,6 +261,10 @@ pub trait Storage<Block: BlockT>: AuxStore + HeaderBackend<Block>
 
 	/// Get storage usage statistics.
 	fn usage_info(&self) -> Option<UsageInfo>;
+
+	/// Set header CHT root for a block.
+	fn set_header_cht_root(&self, block_number: NumberFor<Block>, root: <Block as BlockT>::Hash)
+		-> ClientResult<()>;
 }
 
 /// Remote header.

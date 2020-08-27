@@ -383,6 +383,17 @@ impl<Block: BlockT> LightStorage<Block> {
 			.and_then(|hash| Block::Hash::decode(&mut &*hash).map_err(|_| no_cht_for_block()))
 			.map(Some)
 	}
+
+	/// Read CHT root of given type for the block.
+	fn set_cht_root(
+		&self,
+		cht_type: u8,
+		block_number: NumberFor<Block>,
+		root: <Block as BlockT>::Hash
+	) -> ClientResult<()> {
+		self.db.set(columns::CHT, &cht_key(cht_type, block_number)?, root.as_ref())
+			.map_err(|_| ClientError::Backend("Setting CHT root failed".into()))
+	}
 }
 
 impl<Block> AuxStore for LightStorage<Block>
@@ -593,6 +604,14 @@ impl<Block> Storage<Block> for LightStorage<Block>
 	#[cfg(target_os = "unknown")]
 	fn usage_info(&self) -> Option<UsageInfo> {
 		None
+	}
+
+	fn set_header_cht_root(
+		&self,
+		block_number: NumberFor<Block>,
+		root: <Block as BlockT>::Hash,
+	) -> ClientResult<()> {
+		self.set_cht_root(HEADER_CHT_PREFIX, block_number, root)
 	}
 }
 

@@ -104,6 +104,7 @@ pub struct Params<B: BlockT, H: ExHashT> {
 
 	/// Registry for recording prometheus metrics to.
 	pub metrics_registry: Option<Registry>,
+	pub sync_info: Option<sp_blockchain::Info<B>>,
 }
 
 /// Role of the local node.
