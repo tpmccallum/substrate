@@ -38,8 +38,8 @@ impl Default for HeartbeatOptions {
 
 pub struct HeartbeatStream<Hash> {
 	pool_stream: Box<dyn Stream<Item = EngineCommand<Hash>> + Unpin + Send>,
-	delay: Delay,
-	instant: Instant,
+	delay_future: Delay,
+	last_heartbeat: Option<Instant>,
 	opts: HeartbeatOptions,
 }
 
@@ -48,10 +48,13 @@ impl<Hash> HeartbeatStream<Hash> {
 		pool_stream: Box<dyn Stream<Item = EngineCommand<Hash>> + Unpin + Send>,
 		opts: HeartbeatOptions
 	) -> Self {
+		if opts.min_blocktime > opts.timeout {
+			panic!("Heartbeat options `min_blocktime` value must not be larger than `timeout` value.");
+		}
 		Self {
 			pool_stream,
-			delay: tokio::time::delay_for(Duration::from_secs(opts.timeout)),
-			instant: Instant::now(),
+			delay_future: tokio::time::delay_for(Duration::from_secs(opts.timeout)),
+			last_heartbeat: None,
 			opts
 		}
 	}
@@ -65,14 +68,20 @@ impl<Hash> Stream for HeartbeatStream<Hash> {
 		let mut hbs = self.get_mut();
 		match hbs.pool_stream.poll_next_unpin(cx) {
 			Poll::Ready(Some(ec)) => {
-				// Ensure we are not producing block too frequently, based on `min_blocktime` setting
-				if Instant::now() - hbs.instant < Duration::from_secs(hbs.opts.min_blocktime) {
-					return Poll::Pending;
+				if let Some(last_heartbeat) = hbs.last_heartbeat {
+					// If the last heartbeat happened within min_blocktime time, we want to wait at least
+					//   until `min_blocktime` has passed.
+					if Instant::now() - last_heartbeat < Duration::from_secs(hbs.opts.min_blocktime) {
+						// We set `delay_future` here so those txs arrived after heartbeats doesn't have to wait
+						//   for `timeout`s to get processed, but only `min_blocktime`s.
+						hbs.delay_future = tokio::time::delay_for(Duration::from_secs(hbs.opts.min_blocktime));
+						return Poll::Pending;
+					}
 				}
 
 				// reset the timer and delay future
-				hbs.delay = tokio::time::delay_for(Duration::from_secs(hbs.opts.timeout));
-				hbs.instant = Instant::now();
+				hbs.delay_future = tokio::time::delay_for(Duration::from_secs(hbs.opts.timeout));
+				hbs.last_heartbeat = Some(Instant::now());
 				Poll::Ready(Some(ec))
 			},
 
@@ -81,10 +90,10 @@ impl<Hash> Stream for HeartbeatStream<Hash> {
 
 			Poll::Pending => {
 				// We check if the delay for heartbeat has reached
-				if let Poll::Ready(_) = hbs.delay.poll_unpin(cx) {
+				if let Poll::Ready(_) = hbs.delay_future.poll_unpin(cx) {
 					// reset the timer and delay future
-					hbs.delay = tokio::time::delay_for(Duration::from_secs(hbs.opts.timeout));
-					hbs.instant = Instant::now();
+					hbs.delay_future = tokio::time::delay_for(Duration::from_secs(hbs.opts.timeout));
+					hbs.last_heartbeat = Some(Instant::now());
 
 					return Poll::Ready(Some(EngineCommand::SealNewBlock {
 						create_empty: true, // heartbeat blocks are empty by definition
