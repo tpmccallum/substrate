@@ -438,7 +438,6 @@ impl<Block: BlockT> LightSyncState<Block> {
 			finalized_hash: codec::Decode::decode(&mut &serialized.finalized_hash.0[..])?,
 			finalized_number: codec::Decode::decode(&mut &serialized.finalized_number.0[..])?,
 			genesis_hash: codec::Decode::decode(&mut &serialized.genesis_hash.0[..])?,
-
 		})
 	}
 }
