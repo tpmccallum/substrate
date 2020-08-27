@@ -27,7 +27,7 @@ use serde_json as json;
 use crate::{RuntimeGenesis, ChainType, extension::GetExtension, Properties};
 use sc_network::config::MultiaddrWithPeerId;
 use sc_telemetry::TelemetryEndpoints;
-use sp_runtime::traits::Block as BlockT;
+use sp_runtime::traits::{Block as BlockT, NumberFor};
 
 enum GenesisSource<G> {
 	File(PathBuf),
@@ -403,6 +403,11 @@ pub struct LightSyncState<Block: BlockT> {
 	pub header: <Block as BlockT>::Header,
 	/// A list of all CHTs in the chain.
 	pub chts: Vec<<Block as BlockT>::Hash>,
+	pub best_hash: <Block as BlockT>::Hash,
+	pub best_number: NumberFor<Block>,
+	pub finalized_hash: <Block as BlockT>::Hash,
+	pub finalized_number: NumberFor<Block>,
+	pub genesis_hash: <Block as BlockT>::Hash,
 }
 
 impl<Block: BlockT> LightSyncState<Block> {
@@ -413,6 +418,11 @@ impl<Block: BlockT> LightSyncState<Block> {
 		SerializableLightSyncState {
 			header: StorageData(self.header.encode()),
 			chts: self.chts.iter().map(|hash| StorageData(hash.encode())).collect(),
+			best_hash: StorageData(self.best_hash.encode()),
+			best_number: StorageData(self.best_number.encode()),
+			finalized_hash: StorageData(self.finalized_hash.encode()),
+			finalized_number: StorageData(self.finalized_number.encode()),
+			genesis_hash: StorageData(self.genesis_hash.encode()),
 		}
 	}
 
@@ -423,6 +433,12 @@ impl<Block: BlockT> LightSyncState<Block> {
 			chts: serialized.chts.iter()
 				.map(|cht| codec::Decode::decode(&mut &cht.0[..]))
 				.collect::<Result<_, _>>()?,
+			best_hash: codec::Decode::decode(&mut &serialized.best_hash.0[..])?,
+			best_number: codec::Decode::decode(&mut &serialized.best_number.0[..])?,
+			finalized_hash: codec::Decode::decode(&mut &serialized.finalized_hash.0[..])?,
+			finalized_number: codec::Decode::decode(&mut &serialized.finalized_number.0[..])?,
+			genesis_hash: codec::Decode::decode(&mut &serialized.genesis_hash.0[..])?,
+
 		})
 	}
 }
@@ -434,6 +450,11 @@ impl<Block: BlockT> LightSyncState<Block> {
 pub struct SerializableLightSyncState {
 	header: StorageData,
 	chts: Vec<StorageData>,
+	best_hash: StorageData,
+	best_number: StorageData,
+	finalized_hash: StorageData,
+	finalized_number: StorageData,
+	genesis_hash: StorageData,
 }
 
 #[cfg(test)]

@@ -33,8 +33,10 @@ pub fn build_light_sync_state<TBl, TCl, TBackend>(
 {
 	let cht_root_provider = backend.blockchain();
 
-	let finalized_hash = client.info().finalized_hash;
-	let finalized_number = client.info().finalized_number;
+	let info = client.info();
+
+	let finalized_hash = info.finalized_hash;
+	let finalized_number = info.finalized_number;
 
 	use sc_client_api::cht;
 
@@ -57,5 +59,10 @@ pub fn build_light_sync_state<TBl, TCl, TBackend>(
 	Ok(sc_chain_spec::LightSyncState {
 		header: client.header(BlockId::Hash(finalized_hash))?.unwrap(),
 		chts,
+		best_hash: info.best_hash,
+		best_number: info.best_number,
+		finalized_hash: info.finalized_hash,
+		finalized_number: info.finalized_number,
+		genesis_hash: info.genesis_hash,
 	})
 }
